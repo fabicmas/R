@@ -1,0 +1,64 @@
+#Junção de tabelas de dados de pacientes
+
+============================================
+# 1. Pacotes utilizados
+library(dplyr)
+library(readxl) #para ler arquivos em .xls
+===============================================
+# 2. Leitura dos dados
+
+tab1 <- read_excel("CAMINHO/DO/ARQUIVO/tabela1_pacientes.xlsx")
+View(tab1)
+
+tab2 <- read_excel("CAMINHO/DO/ARQUIVO/tabela2_pacientes.xlsx")
+View(tab2)
+
+tab3 <- read_excel("CAMINHO/DO/ARQUIVO/tabela3_pacientes.xlsx")
+View(tab3)
+#================================================
+# 3. Identificação/padronização da coluna chave 
+
+tab1$PASC_PATIENT_ID <- as.character(tab1$PASC_PATIENT_ID)
+tab2$PASC_PATIENT_ID <- as.character(tab2$PASC_PATIENT_ID)
+tab3$PASC_PATIENT_ID <- as.character(tab3$PASC_PATIENT_ID)
+#==================================================================================
+# 4. Selecionar colunas de interesse (quais colunas de cada tabela serão utilizadas)
+
+tab1 <- tab1 %>%
+select(ID_PROJETO_RECOVER, PASC_PATIENT_ID, REGISTRO_PROJETO, NOME)#nome das colunas
+
+tab2 <- tab2 %>%
+select(PASC_PATIENT_ID, PASC)#nome das colunas
+
+tab3 <- tab3 %>%
+select(PATIENT_ID, SAMPLE_ID, PASC_PATIENT_ID, PASC_SAMPLE_ID)#nome das colunas
+#=====================================================================================
+# 5. Junção das tabelas
+
+pacientes_IDs <- tab1 %>%
+left_join(tab2, by = "PASC_PATIENT_ID") %>%
+left_join(tab3, by = "PASC_PATIENT_ID")
+#================================================================================
+# 6. Salvar a tabela em .csv
+
+write.csv(pacientes_IDs, "tabela_pacientes_IDs.csv", row.names = FALSE )
+getwd()#ver em qual local a tabela foi salva
+setwd("CAMINHO/DO/ARQUIVO/")#mudar a localização do arquivo para este local
+#===================================================================================
+# 7.Retirar as linhas duplicadas (ideal fazer isso antes do passo 6)
+
+resultado_sem_dup <- pacientes_IDs %>%
+distinct(PASC_PATIENT_ID, .keep_all = TRUE)
+#=======================================================================================
+# 8. Salvar novamente sem duplicatas
+
+write.csv(resultado_sem_dup, "tabela_resultado.csv",      
+            row.names = FALSE,
+            fileEncoding = "UTF-8")
+#O fileEncoding serve para a boa leitura do código, onde caracteres como "ç,ã,..." não apareçam quebrados
+getwd()
+#===========================================================================================
+
+#FIM
+
+#==============================================================================================
