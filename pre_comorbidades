@@ -1,0 +1,228 @@
+#1-Consolidar para 1 paciente
+
+# Baixar bibliotecas
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Ler planilha
+
+dados <- read_excel("comorbidades.xlsx")
+
+
+comorbidades_pacientes <- dados_comorb %>%
+  group_by(id) %>%
+  summarise(across(
+    c(
+      `Hipertensão Arterial Sistêmica`,
+      Diabetes,
+      `Doença Pulmonar Obstrutiva Crônica (DPOC)`,
+      `Acidente Vascular Cerebral`,
+      `Insuficiência cardíaca`,
+      `Doença arterial coronariana`,
+      `Arritmia cardíaca`,
+      Pericardite,
+      `Doença vascular periférica`,
+      `Trombose venosa profunda (TVP)`,
+      `Embolia Pulmonar (EP)`,
+      `Câncer ativo`,
+      `Câncer Metastático`,
+      `Doença renal crônica em tratamento conservador`,
+      `Doença renal crônica em diálise`,
+      `Colagenoses/Doenças reumatológicas`,
+      `HIV/AIDS`,
+      Demência,
+      `Obesidade ou cirurgia bariátrica`,
+      Desnutrição,
+      `Tabagismo atual`,
+      `Tabagismo prévio`,
+      `Tuberculose ativa`,
+      `Tuberculose tratada`,
+      `Cirrose hepática`,
+      Transplante,
+      `Doença hematológica`,
+      `Fibrose pulmonar`,
+      Asma,
+      `Fibrose cística`,
+      Gestação,
+      Epilepsia,
+      `Doença gastro-intestinal (Crohn, diverticulite, etc)`
+    ),
+    ~ any(. %in% c("Sim", "SIM", 1), na.rm = TRUE)
+  ))
+
+
+  ##########################################################################################
+  #2-Criar os grupos
+
+  comorbidades_pacientes <- comorbidades_pacientes %>%
+
+  mutate(
+
+    Grupo1_Cardiacas =
+      `Insuficiência cardíaca` |
+      `Doença arterial coronariana` |
+      `Arritmia cardíaca` |
+      Pericardite,
+
+    Grupo2_Respiratorias =
+      `Doença Pulmonar Obstrutiva Crônica (DPOC)` |
+      `Fibrose pulmonar` |
+      Asma |
+      `Fibrose cística` |
+      `Embolia Pulmonar (EP)` |
+      `Tuberculose tratada`,
+
+    Grupo3_Vasculares =
+      `Hipertensão Arterial Sistêmica` |
+      `Doença vascular periférica` |
+      `Trombose venosa profunda (TVP)`,
+
+    Grupo4_Neurologicas =
+      Demência |
+      Epilepsia |
+      `Acidente Vascular Cerebral`,
+
+    Grupo5_Gastro_Hepaticas =
+      `Cirrose hepática` |
+      `Doença gastro-intestinal (Crohn, diverticulite, etc)`,
+
+    Grupo6_Reumatologicas =
+      `Colagenoses/Doenças reumatológicas`,
+
+    Grupo7_Infeccoes =
+      `HIV/AIDS` |
+      `Tuberculose ativa`,
+
+    Grupo8_Metabolicas_Renais =
+      Diabetes |
+      `Doença renal crônica em tratamento conservador` |
+      `Doença renal crônica em diálise`,
+
+    Grupo9_Oncologia =
+      `Câncer ativo` |
+      `Câncer Metastático` |
+      `Doença hematológica`,
+
+    Grupo10_Outras =
+      `QT recente (1 mês)` |
+      `Obesidade ou cirurgia bariátrica` |
+      Desnutrição |
+      Transplante |
+      Gestação |
+      `Tabagismo atual`
+  )
+
+  #####################################################################################
+  #3-Frequencia dos 10 grupos de comorbidades
+  
+  
+  freq_grupos <- freq_grupos %>%
+  arrange(N)
+
+ggplot(freq_grupos,
+       aes(x = reorder(Grupo, N),
+           y = N)) +
+
+  geom_col(fill = "steelblue") +
+
+  geom_text(
+    aes(label = paste0(N," (",Percentual,"%)")),
+    hjust = -0.1
+  ) +
+
+  coord_flip() +
+
+  labs(
+    title = "Comorbidades prévias agrupadas",
+    x = "",
+    y = "Número de pacientes"
+  ) +
+
+  theme_bw() +
+
+  expand_limits(y = max(freq_grupos$N)*1.2)
+
+  ##########################################################################################
+  #4-Frequencia de comorbidades individuais
+
+  comorb_freq <- comorbidades_pacientes %>%
+
+  select(-id) %>%
+
+  pivot_longer(
+    everything(),
+    names_to = "Comorbidade",
+    values_to = "Presente"
+  ) %>%
+
+  filter(Presente == TRUE) %>%
+
+  count(Comorbidade) %>%
+
+  arrange(n)
+
+ggplot(
+  comorb_freq,
+  aes(
+    x = reorder(Comorbidade, n),
+    y = n
+  )
+) +
+
+  geom_col(fill = "darkgreen") +
+
+  coord_flip() +
+
+  geom_text(
+    aes(label = n),
+    hjust = -0.1
+  ) +
+
+  labs(
+    title = "Comorbidades individuais",
+    x = "",
+    y = "Número de pacientes"
+  ) +
+
+  theme_bw()
+
+  ############################################################################################
+  #5-Numero de comorbidades por pacientes
+
+  comorbidades_pacientes <- comorbidades_pacientes %>%
+
+  mutate(
+
+    total_comorbidades =
+      rowSums(
+        select(
+          .,
+          where(is.logical)
+        )
+      )
+
+  )
+
+ggplot(
+  comorbidades_pacientes,
+  aes(x = total_comorbidades)
+) +
+
+  geom_histogram(
+    binwidth = 1,
+    fill = "tomato",
+    color = "black"
+  ) +
+
+  labs(
+    title = "Número de comorbidades por paciente",
+    x = "Quantidade de comorbidades",
+    y = "Pacientes"
+  ) +
+
+  theme_bw()
+
+  ############################################################################################
