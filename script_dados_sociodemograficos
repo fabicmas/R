@@ -1,0 +1,165 @@
+#Script para as variáveis internação, vacinação, escolaridade, gravidade,etc
+
+library(tidyverse)
+library(readxl)
+library(lubridate)
+
+# Ler planilha
+dados <- read_excel("dados.xlsx")
+
+#--------------------------------------------
+# Preparação das datas
+#--------------------------------------------
+
+dados <- dados %>%
+  mutate(
+    rsr_data_admis_hosp = as.Date(rsr_data_admis_hosp),
+    dt_alta = as.Date(dt_alta)
+  )
+
+#--------------------------------------------
+# Resumir para 1 linha por paciente
+#--------------------------------------------
+
+pacientes <- dados %>%
+  group_by(id) %>%
+  summarise(
+
+    escolaridade = first(na.omit(rsr_crf1_escolaridade_2)),
+
+    internado = case_when(
+      any(internacao %in% c("Sim", 1), na.rm = TRUE) ~ "Sim",
+      TRUE ~ "Não"
+    ),
+
+    dias_internacao = max(
+      as.numeric(dt_alta - rsr_data_admis_hosp),
+      na.rm = TRUE
+    ),
+
+    gravidade = first(na.omit(classificacao_oms)),
+
+    dose1 = any(!is.na(vc_vacina_1dose)),
+    dose2 = any(!is.na(vc_vacina_2dose)),
+    dose3 = any(!is.na(vc_vacina_3dose)),
+    dose4 = any(!is.na(vc_vacina_4dose)),
+    dose5 = any(!is.na(vc_vacina_5dose)),
+
+    fabricante1 = first(na.omit(vc_vacina_fabric)),
+    fabricante2 = first(na.omit(vc_vacina_fabric_2dose)),
+    fabricante3 = first(na.omit(vc_vacina_fabric_3dose)),
+    fabricante4 = first(na.omit(vc_vacina_fabric_4dose)),
+    fabricante5 = first(na.omit(vc_vacina_fabric_5dose))
+
+  ) %>%
+  ungroup()
+
+# Corrigir infinitos caso ninguém tenha sido internado
+pacientes$dias_internacao[is.infinite(pacientes$dias_internacao)] <- NA
+
+#--------------------------------------------
+# 1. Escolaridade
+#--------------------------------------------
+
+ggplot(pacientes,
+       aes(x = reorder(escolaridade, escolaridade))) +
+  geom_bar(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Distribuição da Escolaridade",
+    x = "Escolaridade",
+    y = "Número de Pacientes"
+  ) +
+  theme_bw()
+
+#--------------------------------------------
+# 2. Internação (Sim/Não)
+#--------------------------------------------
+
+ggplot(pacientes,
+       aes(x = internado, fill = internado)) +
+  geom_bar() +
+  labs(
+    title = "Pacientes Internados",
+    x = "",
+    y = "Número de Pacientes"
+  ) +
+  theme_bw()
+
+#--------------------------------------------
+# 3. Tempo de internação
+#--------------------------------------------
+
+ggplot(
+  pacientes %>% filter(!is.na(dias_internacao)),
+  aes(x = dias_internacao)
+) +
+  geom_histogram(binwidth = 2,
+                 fill = "tomato",
+                 color = "black") +
+  labs(
+    title = "Tempo de Internação",
+    x = "Dias",
+    y = "Número de Pacientes"
+  ) +
+  theme_bw()
+
+#--------------------------------------------
+# 4. Gravidade (OMS)
+#--------------------------------------------
+
+ggplot(pacientes,
+       aes(x = gravidade)) +
+  geom_bar(fill = "darkorange") +
+  labs(
+    title = "Classificação OMS",
+    x = "Gravidade",
+    y = "Número de Pacientes"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+
+#--------------------------------------------
+# 5. Número de doses recebidas
+#--------------------------------------------
+
+pacientes <- pacientes %>%
+  mutate(
+    n_doses =
+      dose1 + dose2 + dose3 + dose4 + dose5
+  )
+
+ggplot(pacientes,
+       aes(x = factor(n_doses))) +
+  geom_bar(fill = "forestgreen") +
+  labs(
+    title = "Número de Doses Recebidas",
+    x = "Quantidade de Doses",
+    y = "Número de Pacientes"
+  ) +
+  theme_bw()
+
+#--------------------------------------------
+# 6. Fabricantes das vacinas
+#--------------------------------------------
+
+fabricantes <- pacientes %>%
+  select(starts_with("fabricante")) %>%
+  pivot_longer(
+    everything(),
+    values_to = "fabricante"
+  ) %>%
+  filter(!is.na(fabricante))
+
+ggplot(fabricantes,
+       aes(x = fabricante)) +
+  geom_bar(fill = "purple") +
+  labs(
+    title = "Fabricantes das Vacinas",
+    x = "Fabricante",
+    y = "Número de Doses Aplicadas"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
